@@ -1,0 +1,39 @@
+Google Compute EngineでPythonのGPU環境を構築
+機械学習環境として、Google Compute Engine(GCE)のGPUインスタンス上にPythonを構築しました。 また、GPU対応版のLightGBMとCatboostをインストールしました。
+
+本記事はその備忘録となります。
+
+導入プラン
+マシンタイプ
+n1-highmem-8 (vCPUx8、メモリ52GB)
+Ubuntu 18.04
+GPU
+1 x NVIDIA Tesla K80
+CUDA 9.1
+cudnn 7
+Python
+pyenv
+Anaconda3
+LightGBM with GPU
+Catboost with GPU
+Dockerは試したのですが、コンテナ内のJupyter Notebookとクライアント間でセキュアな通信をうまく確立できませんでした*1。
+
+今回は、GCEにいろいろと直接インストールします。
+
+スクリプト例
+Gistにアップロードしたものを貼り付けました。 上から順に実行することで、環境構築できるはずです。
+
+概要を説明すると、
+
+gce_gpu_init.sh
+GPUドライバーのインストール
+CUDAとcudnnのインストール
+ドライバを有効化するために再起動
+gce_init_jupyter.sh
+pyenvの導入
+anaconda3のインストール
+Jupyter Notebookのログインパスワードの設定(ログインパスワードの入力を求められる)
+「GCEのポート8888をファイアウォールに追加してね」とメッセージを表示する
+gce_lightgbm_catboost_installation.sh
+LightGBMのGPUビルドとインストール
+CatboostのGPU対応バイナリのインストール

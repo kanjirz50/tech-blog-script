@@ -1,0 +1,72 @@
+Pythonのrequestsモジュールでの文字コード対策
+編集
+【Webスクレイピング Advent Calendar 2017 4日目の記事です。】
+
+Pythonのrequestsモジュールは、 「Requestsは、人が使いやすいように設計されていて、Pythonで書かれている Apache2 Licensed ベースのHTTPライブラリです。」 と公式サイト1文目に記述されているほど、扱いやすいHTTPライブラリです。
+
+そんなrequestsモジュールですが、日本語HTMLを対象に取得する際に文字化けを起こすことがしばしばあります。
+
+その対策や原因について備忘録としてまとめます。
+
+対策まとめ
+モジュールのバージョンなど
+レスポンスヘッダに文字エンコード情報がないため起こる文字化け
+文字化けの原因
+対策
+大量のページをダウンロードするときは、cChardet
+BeautifulSoupと組み合わせて使う
+まとめ
+参考にしたサイト
+対策まとめ
+requests単体でhtmlを取り出したい場合は、response.encoding = response.apparent_encodingとする
+Beautifulsoupと組み合わせる場合は、soup = BeautifulSoup(response.content, "lxml")と、バイト列をBeautifulSoupに渡す
+モジュールのバージョンなど
+Python (3.6.1)
+requests (2.14.2)
+chardet (3.0.3)
+cchardet (2.1.1)
+beautifulsoup4 (4.6.0)
+レスポンスヘッダに文字エンコード情報がないため起こる文字化け
+requestsモジュール単体で、ページからtextを取得するときの話です。
+
+本当はSHIFT JISのページですが、requestsモジュールではISO-8859-1と判定されてしまう場合の例です。（架空のURLです）
+
+HTML内では、meta情報でcontent="text/html;charset=shift_jis"と記述されています。 なぜ文字化けするのでしょうか。
+
+文字化けの原因
+requestsモジュールのソースコードを見てみると、get_encoding_from_headersメソッドで文字コードを識別しています。 このメソッドは、HTTPのレスポンスヘッダ内のcontent-typeに含まれるcharsetを読みに行きます。 したがってレスポンスヘッダに文字コード情報が記述されていない場合は、デフォルト値のISO-8859-1が設定されてしまいます。
+
+対策
+requestsモジュールでは、取得したHTMLに含まれるテキスト情報から、文字コードを推定してくれる機能があります。
+
+使い方は以下のように、apparent_encodingをencodingに指定します。
+
+>>> response.encoding = response.apparent_encoding
+これによりresponse.textで文字化けしていない文字が抽出できるようになります。
+
+requestsモジュールのソースコードを見てみると、apparent_encodingはプロパティとなっており、呼び出す度に文字コード推定モジュールchardetを用いて、HTMLのバイト列から文字コードを推定しています。
+
+大量のページをダウンロードするときは、cChardet
+日本語のサイトでは、apparent_encodingを設定しておくことが無難に思えます。 この文字コード自動推定はちょっとしたボトルネックになりがちで、大量のページをダウンロードする際は、時間を要します。
+
+この文字コード推定をcChardetに置き換えることで、高速化できます。 公式のベンチマークによると、chardetが0.35(call/s)に対して、cchardetは1467.77(call/s)となります。 ベンチマークは、ある1ファイル（1512行、約16万文字）に対して行われているようです。
+
+インストールはpip install cchardetでできます。
+
+使い方は、以下のようにapparent_encodingのかわりに、cchardetによる文字コード推定結果を用いるだけです。
+
+BeautifulSoupと組み合わせて使う
+requestsで取得したHTMLを解析するためにBeautifulSoupを用いる場合が多いと思います。
+
+BeautifulSoupは、バイト文字列を読み込んで文字コードを推定する機能があるため、cchardetでエンコード情報を再設定する必要はありません。
+
+BeautifulSoupの内部ではUnicodeDammitクラスにより、文字コードを判定しています。 ソースコードを読むと、文字コード推定の砦がいくつかあるようで、HTMLバイト列の先頭バイト列を見て文字コードを決定したり、chardetを使っているようです。
+
+どうしてもcchardetを用いたい場合は、from_encodingで文字コード情報を渡すことができます。
+
+どちらが良いのかは、まだよく分かっていません。
+
+まとめ
+何度も忘れては調べるrequestsの文字コード周りを書きながら、自分の中で整理しました。
+
+結論としては、人間が設定しないといけないレスポンスヘッダやHTML内のメタタグは最初から信用せず、バイト列を元に推定すると良いというお話でした。
